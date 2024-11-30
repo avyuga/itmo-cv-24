@@ -71,4 +71,17 @@ class SiftImageSearcher(ImageSearcher):
         w = int(max(transformed[:, 0, 0]) - x)
         h = int(max(transformed[:, 0, 1]) - y)
 
+        # Get haystack dimensions
+        haystack_h, haystack_w = haystack.shape[:2]
+        
+        # Clamp coordinates to image bounds
+        x = max(0, min(x, haystack_w))
+        y = max(0, min(y, haystack_h))
+        w = min(w, haystack_w - x)
+        h = min(h, haystack_h - y)
+        
+        # Ensure width and height are positive and reasonable
+        if w <= 0 or h <= 0 or w > haystack_w or h > haystack_h:
+            return None
+
         return (x, y, w, h)

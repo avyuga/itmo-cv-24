@@ -51,10 +51,10 @@ class TemplateImageSearcher(ImageSearcher):
                 diff = np.sum((window - needle) ** 2) / (needle_height * needle_width)
                 result[y, x] = diff
 
-        if np.min(result) > self.threshold:
+        if np.min(result) / 255.0 > self.threshold:
             return None
 
         # Get the position of the best match
         y, x = np.unravel_index(np.argmin(result), result.shape)
 
-        return (x, y + needle_height, needle_width, needle_height)
+        return (x, y, needle_width, needle_height)
