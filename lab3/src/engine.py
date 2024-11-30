@@ -4,16 +4,19 @@ from datetime import datetime
 import numpy as np
 from tqdm import tqdm
 
+import torch
+
 
 class Engine:
-    def __init__(self, model, device, logger_path, loss_func, optimizer, lr_scheduler, metric):
+    def __init__(self, model, device, logger_path, checkpoint_path, loss_func, optimizer, lr_scheduler, metric):
 
         self.model = model
+
+        self.checkpoint_path = checkpoint_path
         self.logger_path = logger_path
         with open(self.logger_path, 'w', newline='', encoding='utf-8') as csv_file:
             writer = csv.DictWriter(csv_file, fieldnames=["epoch", "train_loss", "val_loss", f"train_{metric.printout_name}", f"val_{metric.printout_name}"])
             writer.writeheader()
-
 
         self.loss = loss_func
 
@@ -24,13 +27,21 @@ class Engine:
         self.device=device
         self.model.to(device)
 
+        self.epoch = 0
+
 
     def log(self, epoch, train_loss, val_loss, train_acc, val_acc):
-        with open(self.logger_path, 'a') as file:
+        with open(self.logger_path, 'a', newline='') as file:
             writer = csv.writer(file, delimiter=',')
             row = [epoch, train_loss, val_loss, train_acc, val_acc]
             writer.writerow(row)
 
+
+    def save(self, is_best=False):
+        torch.save(self.model.state_dict(), f"{self.checkpoint_path}/last.pkl")
+        if is_best:
+            torch.save(self.model.state_dict(), f"{self.checkpoint_path}/best.pkl")
+        
 
     def train_ep(self, loader, epoch_number):
         self.model.train()
@@ -93,11 +104,19 @@ class Engine:
 
     
     def run(self, train_loader, val_loader, epochs):
-        for e in range(epochs):
+        best_val_metric = self.metric.worst_value
+        
+        for e in range(self.epoch, self.epoch+epochs):
             print(f"Epoch {e}")
             train_loss, train_metric = self.train_ep(train_loader, epoch_number=e)
             val_loss, val_metric = self.validate_ep(val_loader, epoch_number=e)
 
             self.log(e, train_loss, val_loss, train_metric, val_metric)
 
+            is_metric_better = self.metric.compare_metrics(best_val_metric, val_metric)
+            self.save(is_metric_better)
+            if is_metric_better:
+                best_val_metric = val_metric
+
+            self.epoch += 1
 
